@@ -24,7 +24,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/er3n/dokumevzuat"
-Dataset = "https://huggingface.co/datasets/er3nhf/kdv-rag-benchmark"
+Dataset = "https://huggingface.co/datasets/dokukoza/kdv-rag-benchmark"
 
 [tool.hatch.envs.default]
 skip-install = true

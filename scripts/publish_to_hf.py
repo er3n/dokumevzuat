@@ -1,12 +1,12 @@
 """
 Publish the benchmark dataset to Hugging Face.
-Repo: er3nhf/kdv-rag-benchmark
+Repo: dokukoza/kdv-rag-benchmark
 """
 
 from huggingface_hub import HfApi, create_repo
 from pathlib import Path
 
-REPO_ID   = "er3nhf/kdv-rag-benchmark"
+REPO_ID   = "dokukoza/kdv-rag-benchmark"
 REPO_TYPE = "dataset"
 ROOT      = Path(__file__).parent.parent
 

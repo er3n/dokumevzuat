@@ -121,13 +121,13 @@ kaynak_edit_key: string?  — the edit record that triggered the transition to t
 
 | | recall@10 |
 |---|---|
-| Best general retrieval (BM25∪Nomic pool + query rewriting + Qwen3-Reranker-8B rerank) | **0.738** (hard/clean question subset) |
+| Best general retrieval (BM25∪Nomic pool + query rewriting + Qwen3-Reranker-8B rerank) | **0.737** (the 270 real-subject questions) |
 | Point-in-time¹, date-blind (current-text approach) | 0.089 |
 | Point-in-time¹, historical data + date filter | **0.768** |
 
 ¹ Point-in-time: the ability to answer a question like "was this transaction VAT-exempt in 2019?" with the article version that was actually in force on the event date, not today's text — `corpus_versioned`/`corpus_versioned_chunked` exist for this.
 
-The path to these numbers — chunking mattering more than model choice, the MTEB leaderboard not transferring to this task, the risks of drawing conclusions from a small sample, and how much the date filter's position in the pipeline (before vs. after ranking) changes the result — is written up in a separate post: *(blog link to be added)*. Raw experiment records and code: [github.com/er3n/dokumevzuat](https://github.com/er3n/dokumevzuat).
+The path to these numbers — chunking mattering more than model choice, the MTEB leaderboard not transferring to this task, the risks of drawing conclusions from a small sample, and how much the date filter's position in the pipeline (before vs. after ranking) changes the result — is written up in a separate post: [dokukoza.com/blog/measured-legal-rag](https://dokukoza.com/blog/measured-legal-rag/). Raw experiment records and code: [github.com/er3n/dokumevzuat](https://github.com/er3n/dokumevzuat).
 
 ## Usage
 
@@ -135,20 +135,20 @@ The path to these numbers — chunking mattering more than model choice, the MTE
 from datasets import load_dataset
 
 # Benchmark
-train = load_dataset("er3nhf/kdv-rag-benchmark", "benchmark", split="train")
-test  = load_dataset("er3nhf/kdv-rag-benchmark", "benchmark", split="test")
+train = load_dataset("dokukoza/kdv-rag-benchmark", "benchmark", split="train")
+test  = load_dataset("dokukoza/kdv-rag-benchmark", "benchmark", split="test")
 
 # Corpus (unsplit, 110 articles)
-corpus = load_dataset("er3nhf/kdv-rag-benchmark", "corpus", split="train")
+corpus = load_dataset("dokukoza/kdv-rag-benchmark", "corpus", split="train")
 
 # Corpus (chunked, 174 records — better retrieval results)
-corpus_chunked = load_dataset("er3nhf/kdv-rag-benchmark", "corpus_chunked", split="train")
+corpus_chunked = load_dataset("dokukoza/kdv-rag-benchmark", "corpus_chunked", split="train")
 
 # Point-in-time article versions (8 multi-version articles)
-corpus_versioned = load_dataset("er3nhf/kdv-rag-benchmark", "corpus_versioned", split="train")
+corpus_versioned = load_dataset("dokukoza/kdv-rag-benchmark", "corpus_versioned", split="train")
 
 # Point-in-time article versions, chunked — the corpus actually used for eval
-corpus_versioned_chunked = load_dataset("er3nhf/kdv-rag-benchmark", "corpus_versioned_chunked", split="train")
+corpus_versioned_chunked = load_dataset("dokukoza/kdv-rag-benchmark", "corpus_versioned_chunked", split="train")
 ```
 
 ### Evaluation example
@@ -166,10 +166,20 @@ corpus_versioned_chunked = load_dataset("er3nhf/kdv-rag-benchmark", "corpus_vers
 - **Rulings**: [Revenue Administration (GİB)](https://gib.gov.tr) — VAT Law ruling database
 - **Articles**: [mevzuat.gov.tr](https://www.mevzuat.gov.tr) — Law No. 3065 (VAT Law)
 
-References and labels are published, not raw scraped text.
+Public institutions' open data — full text included, not just references and labels.
 
 ## License
 
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — usable with attribution.
 
-The source data is open data belonging to public institutions of the Republic of Turkey.
+## Citation
+
+```bibtex
+@misc{kdv_rag_benchmark_2026,
+  title        = {KDV RAG Benchmark: A Point-in-Time Turkish VAT Law Retrieval Benchmark},
+  author       = {Öztürk, Eren},
+  year         = {2026},
+  publisher    = {Hugging Face},
+  howpublished = {\url{https://huggingface.co/datasets/dokukoza/kdv-rag-benchmark}}
+}
+```

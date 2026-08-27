@@ -4,7 +4,7 @@ src/parsers and src/benchmark expect.
 
 This repo does not ship raw scraped data or the scrapers that produced it (see
 README.md). Everything the benchmark scripts need is already published at
-https://huggingface.co/datasets/er3nhf/kdv-rag-benchmark - this script just
+https://huggingface.co/datasets/dokukoza/kdv-rag-benchmark - this script just
 downloads it and lays it out on disk under the paths the code reads.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 
-REPO_ID   = "er3nhf/kdv-rag-benchmark"
+REPO_ID   = "dokukoza/kdv-rag-benchmark"
 REPO_TYPE = "dataset"
 ROOT      = Path(__file__).parent.parent / "data"
 

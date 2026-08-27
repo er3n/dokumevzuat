@@ -14,8 +14,8 @@ not today's text.
 | Point-in-time, date-blind (current-text approach) | 0.089 |
 | Point-in-time, historical data + date filter | **0.768** |
 
-Full writeup, including the layers that didn't help: *(blog link to be added)*.
-Dataset: [huggingface.co/datasets/er3nhf/kdv-rag-benchmark](https://huggingface.co/datasets/er3nhf/kdv-rag-benchmark).
+Full writeup, including the layers that didn't help: [dokukoza.com/blog/measured-legal-rag](https://dokukoza.com/blog/measured-legal-rag/).
+Dataset: [huggingface.co/datasets/dokukoza/kdv-rag-benchmark](https://huggingface.co/datasets/dokukoza/kdv-rag-benchmark).
 
 ## What's here, and what isn't
 
