@@ -1,0 +1,156 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dokumevzuat"
+version = "0.1.0"
+description = "A point-in-time retrieval benchmark for Turkish VAT (KDV) law"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Eren Ozturk", email = "erenozturk@gmail.com" },
+]
+dependencies = [
+    "requests",
+    "rank-bm25",
+    "huggingface-hub",
+    "datasets",
+    "sentence-transformers",
+    "numpy",
+    "einops",
+]
+
+[project.urls]
+Repository = "https://github.com/er3n/dokumevzuat"
+Dataset = "https://huggingface.co/datasets/er3nhf/kdv-rag-benchmark"
+
+[tool.hatch.envs.default]
+skip-install = true
+dependencies = [
+    "requests",
+    "rank-bm25",
+    "huggingface-hub",
+    "datasets",
+    "sentence-transformers",
+    "numpy",
+    "einops",
+]
+
+[tool.hatch.envs.default.scripts]
+# Data
+fetch-data     = "python scripts/fetch_data.py"
+
+# Parsers (run against data fetched from HF, no raw scrape data needed)
+chunk-articles = "python src/parsers/article_chunker.py"
+
+# Benchmark
+# Note: `hatch run <script> --extra-arg` does not forward the extra argument to the
+# script (a hatch limitation), so article/chunk variants are each defined as their own
+# command below.
+bm25              = "python src/benchmark/bm25_baseline.py --corpus article"
+bm25-chunk        = "python src/benchmark/bm25_baseline.py --corpus chunk"
+dense             = "python src/benchmark/dense_baseline.py --corpus article"
+dense-chunk       = "python src/benchmark/dense_baseline.py --corpus chunk"
+dense-bge         = "python src/benchmark/dense_baseline.py --model BAAI/bge-m3 --corpus article"
+dense-bge-chunk   = "python src/benchmark/dense_baseline.py --model BAAI/bge-m3 --corpus chunk"
+dense-qwen        = "python src/benchmark/dense_baseline.py --model Qwen/Qwen3-Embedding-0.6B --corpus article"
+dense-qwen-chunk  = "python src/benchmark/dense_baseline.py --model Qwen/Qwen3-Embedding-0.6B --corpus chunk"
+dense-qwen8b-chunk = "python src/benchmark/dense_baseline.py --model Qwen/Qwen3-Embedding-8B --corpus chunk"
+dense-nomic-chunk = "python src/benchmark/dense_baseline.py --model nomic-ai/nomic-embed-text-v2-moe --corpus chunk"
+
+# Scores excluding boilerplate articles (Article 28/1/9 -- topic-independent, cited in
+# nearly every ruling)
+bm25-chunk-clean       = "python src/benchmark/bm25_baseline.py --corpus chunk --exclude-boilerplate"
+dense-bge-chunk-clean  = "python src/benchmark/dense_baseline.py --model BAAI/bge-m3 --corpus chunk --exclude-boilerplate"
+
+# Hybrid rerank (BM25 + dense, Reciprocal Rank Fusion)
+hybrid-nomic-chunk        = "python src/benchmark/hybrid_rerank.py --dense-model nomic-ai/nomic-embed-text-v2-moe --corpus chunk"
+hybrid-nomic-chunk-clean  = "python src/benchmark/hybrid_rerank.py --dense-model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --exclude-boilerplate"
+hybrid-qwen8b-chunk       = "python src/benchmark/hybrid_rerank.py --dense-model Qwen/Qwen3-Embedding-8B --corpus chunk"
+hybrid-qwen8b-chunk-clean = "python src/benchmark/hybrid_rerank.py --dense-model Qwen/Qwen3-Embedding-8B --corpus chunk --exclude-boilerplate"
+
+# Pointwise cross-encoder rerank (first stage: Nomic v2-moe standalone dense, top-k candidate pool)
+rerank-bge-pool20-chunk          = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 20 --corpus chunk"
+rerank-bge-pool20-chunk-clean    = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 20 --corpus chunk --exclude-boilerplate"
+rerank-bge-pool50-chunk          = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 50 --corpus chunk"
+rerank-bge-pool50-chunk-clean    = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 50 --corpus chunk --exclude-boilerplate"
+rerank-qwen8b-pool20-chunk       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk"
+rerank-qwen8b-pool20-chunk-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --exclude-boilerplate"
+rerank-qwen8b-pool50-chunk       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 50 --corpus chunk"
+rerank-qwen8b-pool50-chunk-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 50 --corpus chunk --exclude-boilerplate"
+
+# vLLM backend (speed workaround for missing local flash-attn on RTX 5090/Blackwell,
+# see README.md's vLLM backend note). Start the servers first with docker/start_all.sh.
+rerank-qwen8b-pool20-chunk-vllm       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --backend vllm"
+rerank-qwen8b-pool20-chunk-vllm-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --backend vllm --exclude-boilerplate"
+# NOTE: no hatch command was added for also moving the first stage (--first-stage-backend
+# vllm) to vLLM -- vLLM's Nomic-MoE embeddings don't match local ones (recall@10
+# 0.6566->0.5206), root cause is in vLLM's NomicMoE reimplementation, see README.md's
+# vLLM backend note and docker/serve_nomic_embed_vllm.sh. The first stage should stay on
+# the default (local) backend; the commands above only move the reranker to vLLM.
+
+# Cleaned baseline (VUK/unrelated-law citations excluded + train+test combined, 154->~810
+# queries). Qwen3-Embedding-8B and Qwen3-Reranker-8B run 4-bit quantized by default
+# (faster, less VRAM).
+bm25-chunk-traintest        = "python src/benchmark/bm25_baseline.py --corpus chunk --include-train"
+bm25-chunk-traintest-clean  = "python src/benchmark/bm25_baseline.py --corpus chunk --include-train --exclude-boilerplate"
+
+dense-nomic-chunk-traintest       = "python src/benchmark/dense_baseline.py --model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --include-train"
+dense-nomic-chunk-traintest-clean = "python src/benchmark/dense_baseline.py --model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --include-train --exclude-boilerplate"
+dense-qwen8b-chunk-traintest       = "python src/benchmark/dense_baseline.py --model Qwen/Qwen3-Embedding-8B --corpus chunk --include-train"
+dense-qwen8b-chunk-traintest-clean = "python src/benchmark/dense_baseline.py --model Qwen/Qwen3-Embedding-8B --corpus chunk --include-train --exclude-boilerplate"
+
+hybrid-nomic-chunk-traintest       = "python src/benchmark/hybrid_rerank.py --dense-model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --include-train"
+hybrid-nomic-chunk-traintest-clean = "python src/benchmark/hybrid_rerank.py --dense-model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --include-train --exclude-boilerplate"
+hybrid-qwen8b-chunk-traintest       = "python src/benchmark/hybrid_rerank.py --dense-model Qwen/Qwen3-Embedding-8B --corpus chunk --include-train"
+hybrid-qwen8b-chunk-traintest-clean = "python src/benchmark/hybrid_rerank.py --dense-model Qwen/Qwen3-Embedding-8B --corpus chunk --include-train --exclude-boilerplate"
+
+rerank-bge-pool20-chunk-traintest          = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 20 --corpus chunk --include-train"
+rerank-bge-pool20-chunk-traintest-clean    = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 20 --corpus chunk --include-train --exclude-boilerplate"
+rerank-bge-pool50-chunk-traintest          = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 50 --corpus chunk --include-train"
+rerank-bge-pool50-chunk-traintest-clean    = "python src/benchmark/cross_encoder_rerank.py --reranker-model BAAI/bge-reranker-v2-m3 --pool-size 50 --corpus chunk --include-train --exclude-boilerplate"
+rerank-qwen8b-pool20-chunk-traintest       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train"
+rerank-qwen8b-pool20-chunk-traintest-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --exclude-boilerplate"
+rerank-qwen8b-pool50-chunk-traintest       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 50 --corpus chunk --include-train"
+rerank-qwen8b-pool50-chunk-traintest-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 50 --corpus chunk --include-train --exclude-boilerplate"
+
+# vLLM backend, traintest (n=813/270) -- run docker/start_all.sh first
+rerank-qwen8b-pool20-chunk-traintest-vllm       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --backend vllm"
+rerank-qwen8b-pool20-chunk-traintest-vllm-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --backend vllm --exclude-boilerplate"
+
+# First-stage pool as BM25 union Nomic top-k, instead of Nomic alone
+rerank-qwen8b-pool20-hybridpool-chunk-traintest       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --hybrid-pool"
+rerank-qwen8b-pool20-hybridpool-chunk-traintest-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --hybrid-pool --exclude-boilerplate"
+
+# Query rewriting (LLM rewrites the question into legal-register language; added to the
+# first-stage pool as an independent source, the reranker always sees the original
+# question). Generate rewrites first:
+#   docker rm -f vllm-reranker vllm-embed 2>/dev/null; bash docker/serve_qwen3_instruct_vllm.sh
+#   hatch run rewrite-generate
+#   docker rm -f vllm-instruct; bash docker/start_all.sh
+rewrite-generate = "python src/benchmark/generate_rewrites.py --model Qwen/Qwen3-8B"
+
+# Isolation ablations: measure rewriting's effect on BM25 (lexical gap) and Nomic
+# (embedding gap) in isolation
+bm25-chunk-traintest-rewrite       = "python src/benchmark/bm25_baseline.py --corpus chunk --include-train --query-mode rewrite --rewrite-cache data/benchmark/rewrites_Qwen3-8B.json"
+bm25-chunk-traintest-clean-rewrite = "python src/benchmark/bm25_baseline.py --corpus chunk --include-train --exclude-boilerplate --query-mode rewrite --rewrite-cache data/benchmark/rewrites_Qwen3-8B.json"
+dense-nomic-chunk-traintest-rewrite       = "python src/benchmark/dense_baseline.py --model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --include-train --query-mode rewrite --rewrite-cache data/benchmark/rewrites_Qwen3-8B.json"
+dense-nomic-chunk-traintest-clean-rewrite = "python src/benchmark/dense_baseline.py --model nomic-ai/nomic-embed-text-v2-moe --corpus chunk --include-train --exclude-boilerplate --query-mode rewrite --rewrite-cache data/benchmark/rewrites_Qwen3-8B.json"
+
+# Main experiment: the champion pool (BM25 union Nomic) extended with rewrite sources
+rerank-qwen8b-pool20-hybridpool-rewritepool-chunk-traintest       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --hybrid-pool --rewrite-pool --rewrite-cache data/benchmark/rewrites_Qwen3-8B.json"
+rerank-qwen8b-pool20-hybridpool-rewritepool-chunk-traintest-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-8B --pool-size 20 --corpus chunk --include-train --hybrid-pool --rewrite-pool --rewrite-cache data/benchmark/rewrites_Qwen3-8B.json --exclude-boilerplate"
+
+# Speed experiment: smaller Qwen3-Reranker sizes + larger batch (lower VRAM pressure)
+rerank-qwen4b-pool20-chunk-traintest       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-4B --pool-size 20 --corpus chunk --include-train"
+rerank-qwen4b-pool20-chunk-traintest-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-4B --pool-size 20 --corpus chunk --include-train --exclude-boilerplate"
+rerank-qwen06b-pool20-chunk-traintest       = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-0.6B --pool-size 20 --corpus chunk --include-train"
+rerank-qwen06b-pool20-chunk-traintest-clean = "python src/benchmark/cross_encoder_rerank.py --reranker-model Qwen/Qwen3-Reranker-0.6B --pool-size 20 --corpus chunk --include-train --exclude-boilerplate"
+
+# Hugging Face
+publish-to-hf  = "python scripts/publish_to_hf.py"
+
+# Smoke-test pipeline: fetch published data, rebuild the article-chunked corpus, run BM25
+pipeline       = ["fetch-data", "chunk-articles", "bm25-chunk"]
